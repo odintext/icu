@@ -51,7 +51,7 @@ public class CharsetDetector {
 
     /**
      *   Constructor
-     * 
+     *
      * @stable ICU 3.4
      */
     public CharsetDetector() {
@@ -61,15 +61,15 @@ public class CharsetDetector {
      * Set the declared encoding for charset detection.
      *  The declared encoding of an input text is an encoding obtained
      *  from an http header or xml declaration or similar source that
-     *  can be provided as additional information to the charset detector.  
+     *  can be provided as additional information to the charset detector.
      *  A match between a declared encoding and a possible detected encoding
      *  will raise the quality of that detected encoding by a small delta,
      *  and will also appear as a "reason" for the match.
      * <p>
      * A declared encoding that is incompatible with the input data being
      * analyzed will not be added to the list of possible encodings.
-     * 
-     *  @param encoding The declared encoding 
+     *
+     *  @param encoding The declared encoding
      *
      * @stable ICU 3.4
      */
@@ -77,12 +77,12 @@ public class CharsetDetector {
         fDeclaredEncoding = encoding;
         return this;
     }
-    
+
     /**
      * Set the input text (byte) data whose charset is to be detected.
-     * 
+     *
      * @param in the input text of unknown encoding
-     * 
+     *
      * @return This CharsetDetector
      *
      * @stable ICU 3.4
@@ -90,11 +90,14 @@ public class CharsetDetector {
     public CharsetDetector setText(byte [] in) {
         fRawInput  = in;
         fRawLength = in.length;
-        
+
+        kBufSize = fRawLength;
+        fInputBytes = new byte[kBufSize];
+
         return this;
     }
-    
-    private static final int kBufSize = 8000;
+
+    private static int kBufSize;
 
     /**
      * Set the input text (byte) data whose charset is to be detected.
@@ -106,13 +109,16 @@ public class CharsetDetector {
      *   be read depends on the characteristics of the data itself.
      *
      * @param in the input text of unknown encoding
-     * 
+     *
      * @return This CharsetDetector
      *
      * @stable ICU 3.4
      */
-    
+
     public CharsetDetector setText(InputStream in) throws IOException {
+        kBufSize = 8192;
+        fInputBytes = new byte[kBufSize];
+
         fInputStream = in;
         fInputStream.mark(kBufSize);
         fRawInput = new byte[kBufSize];   // Always make a new buffer because the
@@ -130,20 +136,20 @@ public class CharsetDetector {
             remainingLength -= bytesRead;
         }
         fInputStream.reset();
-        
+
         return this;
     }
 
-  
+
     /**
      * Return the charset that best matches the supplied input data.
-     * 
-     * Note though, that because the detection 
+     *
+     * Note though, that because the detection
      * only looks at the start of the input data,
      * there is a possibility that the returned charset will fail to handle
      * the full set of input data.
      * <p>
-     * Raise an exception if 
+     * Raise an exception if
      *  <ul>
      *    <li>no charset appears to match the data.</li>
      *    <li>no input text has been provided</li>
@@ -160,34 +166,34 @@ public class CharsetDetector {
 //          is found.  This is something to be done later, after things are otherwise
 //          working.
         CharsetMatch matches[] = detectAll();
-        
+
         if (matches == null || matches.length == 0) {
             return null;
         }
-        
+
         return matches[0];
      }
-    
+
     /**
      *  Return an array of all charsets that appear to be plausible
      *  matches with the input data.  The array is ordered with the
      *  best quality match first.
      * <p>
-     * Raise an exception if 
+     * Raise an exception if
      *  <ul>
      *    <li>no charsets appear to match the input data.</li>
      *    <li>no input text has been provided</li>
      *  </ul>
-     * 
+     *
      * @return An array of CharsetMatch objects representing possibly matching charsets.
      *
      * @stable ICU 3.4
      */
     public CharsetMatch[] detectAll() {
-        ArrayList<CharsetMatch>         matches = new ArrayList<CharsetMatch>();
-        
+        ArrayList<CharsetMatch>         matches = new ArrayList<>();
+
         MungeInput();  // Strip html markup, collect byte stats.
-        
+
         //  Iterate over all possible charsets, remember all that
         //    give a match quality > 0.
         for (int i = 0; i < ALL_CS_RECOGNIZERS.size(); i++) {
@@ -207,7 +213,7 @@ public class CharsetDetector {
         return resultArray;
     }
 
-    
+
     /**
      * Autodetect the charset of an inputStream, and return a Java Reader
      * to access the converted input data.
@@ -222,7 +228,7 @@ public class CharsetDetector {
      *    be read depends on the characteristics of the data itself.
      *<p>
      * Raise an exception if no charsets appear to match the input data.
-     * 
+     *
      * @param in The source of the byte data in the unknown charset.
      *
      * @param declaredEncoding  A declared encoding for the data, if available,
@@ -232,16 +238,16 @@ public class CharsetDetector {
      */
     public Reader getReader(InputStream in, String declaredEncoding) {
         fDeclaredEncoding = declaredEncoding;
-        
+
         try {
             setText(in);
-            
+
             CharsetMatch match = detect();
-            
+
             if (match == null) {
                 return null;
             }
-            
+
             return match.getReader();
         } catch (IOException e) {
             return null;
@@ -256,7 +262,7 @@ public class CharsetDetector {
      *   <code>this.setDeclaredEncoding(declaredEncoding).setText(in).detect().getString();</code>
      *<p>
      * Raise an exception if no charsets appear to match the input data.
-     * 
+     *
      * @param in The source of the byte data in the unknown charset.
      *
      * @param declaredEncoding  A declared encoding for the data, if available,
@@ -267,23 +273,23 @@ public class CharsetDetector {
     public String getString(byte[] in, String declaredEncoding)
     {
         fDeclaredEncoding = declaredEncoding;
-       
+
         try {
             setText(in);
-            
+
             CharsetMatch match = detect();
-            
+
             if (match == null) {
                 return null;
             }
-            
+
             return match.getString(-1);
         } catch (IOException e) {
             return null;
         }
     }
 
- 
+
     /**
      * Get the names of all charsets supported by <code>CharsetDetector</code> class.
      * <p>
@@ -305,13 +311,13 @@ public class CharsetDetector {
             allCharsetNames[i] = ALL_CS_RECOGNIZERS.get(i).recognizer.getName();
         }
         return allCharsetNames;
-    }   
-       
+    }
+
     /**
      * Test whether or not input filtering is enabled.
-     * 
+     *
      * @return <code>true</code> if input text will be filtered.
-     * 
+     *
      * @see #enableInputFilter
      *
      * @stable ICU 3.4
@@ -320,14 +326,14 @@ public class CharsetDetector {
     {
         return fStripTags;
     }
-    
+
     /**
      * Enable filtering of input text. If filtering is enabled,
      * text within angle brackets ("&lt;" and "&gt;") will be removed
      * before detection.
-     * 
+     *
      * @param filter <code>true</code> to enable input text filtering.
-     * 
+     *
      * @return The previous setting.
      *
      * @stable ICU 3.4
@@ -335,12 +341,12 @@ public class CharsetDetector {
     public boolean enableInputFilter(boolean filter)
     {
         boolean previous = fStripTags;
-        
+
         fStripTags = filter;
-        
+
         return previous;
     }
-    
+
     /*
      *  MungeInput - after getting a set of raw input data to be analyzed, preprocess
      *               it by removing what appears to be html markup.
@@ -352,7 +358,7 @@ public class CharsetDetector {
         boolean  inMarkup = false;
         int      openTags = 0;
         int      badTags  = 0;
-        
+
         //
         //  html / xml markup stripping.
         //     quick and dirty, not 100% accurate, but hopefully good enough, statistically.
@@ -369,38 +375,38 @@ public class CharsetDetector {
                     inMarkup = true;
                     openTags++;
                 }
-                
+
                 if (! inMarkup) {
                     fInputBytes[dsti++] = b;
                 }
-                
+
                 if (b == (byte)'>') {
                     inMarkup = false;
-                }        
+                }
             }
-            
+
             fInputLen = dsti;
         }
-        
+
         //
         //  If it looks like this input wasn't marked up, or if it looks like it's
         //    essentially nothing but markup abandon the markup stripping.
         //    Detection will have to work on the unstripped input.
         //
-        if (openTags<5 || openTags/5 < badTags || 
+        if (openTags<5 || openTags/5 < badTags ||
                 (fInputLen < 100 && fRawLength>600)) {
             int limit = fRawLength;
-            
+
             if (limit > kBufSize) {
                 limit = kBufSize;
             }
-            
+
             for (srci=0; srci<limit; srci++) {
                 fInputBytes[srci] = fRawInput[srci];
             }
             fInputLen = srci;
         }
-        
+
         //
         // Tally up the byte occurence statistics.
         //   These are available for use by the various detectors.
@@ -410,7 +416,7 @@ public class CharsetDetector {
             int val = fInputBytes[srci] & 0x00ff;
             fByteStats[val]++;
         }
-        
+
         fC1Bytes = false;
         for (int i = 0x80; i <= 0x9F; i += 1) {
             if (fByteStats[i] != 0) {
@@ -423,32 +429,31 @@ public class CharsetDetector {
     /*
      *  The following items are accessed by individual CharsetRecongizers during
      *     the recognition process
-     * 
+     *
      */
-    byte[]      fInputBytes =       // The text to be checked.  Markup will have been
-                   new byte[kBufSize];  //   removed if appropriate.
-    
+    byte[]      fInputBytes;
+
     int         fInputLen;          // Length of the byte data in fInputBytes.
-    
+
     short       fByteStats[] =      // byte frequency statistics for the input text.
                    new short[256];  //   Value is percent, not absolute.
                                     //   Value is rounded up, so zero really means zero occurences.
-    
+
     boolean     fC1Bytes =          // True if any bytes in the range 0x80 - 0x9F are in the input;
                    false;
-    
+
     String      fDeclaredEncoding;
 
 
     byte[]               fRawInput;     // Original, untouched input bytes.
                                         //  If user gave us a byte array, this is it.
-                                        //  If user gave us a stream, it's read to a 
+                                        //  If user gave us a stream, it's read to a
                                         //  buffer here.
     int                  fRawLength;    // Length of data in fRawInput array.
-    
+
     InputStream          fInputStream;  // User's input stream, or null if the user
                                         //   gave us a byte array.
-     
+
     //
     //  Stuff private to CharsetDetector
     //
@@ -475,7 +480,7 @@ public class CharsetDetector {
     private static final List<CSRecognizerInfo> ALL_CS_RECOGNIZERS;
 
     static {
-        List<CSRecognizerInfo> list = new ArrayList<CSRecognizerInfo>();
+        List<CSRecognizerInfo> list = new ArrayList<>();
 
         list.add(new CSRecognizerInfo(new CharsetRecog_UTF8(), true));
         list.add(new CSRecognizerInfo(new CharsetRecog_Unicode.CharsetRecog_UTF_16_BE(), true));
@@ -524,7 +529,7 @@ public class CharsetDetector {
      */
     @Deprecated
     public String[] getDetectableCharsets() {
-        List<String> csnames = new ArrayList<String>(ALL_CS_RECOGNIZERS.size());
+        List<String> csnames = new ArrayList<>(ALL_CS_RECOGNIZERS.size());
         for (int i = 0; i < ALL_CS_RECOGNIZERS.size(); i++) {
             CSRecognizerInfo rcinfo = ALL_CS_RECOGNIZERS.get(i);
             boolean active = (fEnabledRecognizers == null) ? rcinfo.isDefaultEnabled : fEnabledRecognizers[i];
@@ -576,7 +581,7 @@ public class CharsetDetector {
                 fEnabledRecognizers[i] = ALL_CS_RECOGNIZERS.get(i).isDefaultEnabled;
             }
         }
- 
+
         if (fEnabledRecognizers != null) {
             fEnabledRecognizers[modIdx] = enabled;
         }
